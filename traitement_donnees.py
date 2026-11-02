@@ -205,12 +205,15 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
     fig, ax = plt.subplots(1, len(y_param), figsize=(11, 4.5))
     fig.suptitle(title, fontsize=16)
 
+    if len(y_param) == 1:
+        ax = [ax]
+
     for (i, param), a in zip(enumerate(y_param), ax):
         for helice in helices:
             ax[i].plot(helice.PARAMETERS[x_param[i]], helice.PARAMETERS[param], "o", label=helice.nom, markersize=MARKERSIZE)
         
         a.set_xlabel(xlabel[i])
-        a.set_ylabel(ylabel)
+        a.set_ylabel(ylabel[i])
         a.legend()
         a.grid()
     
@@ -222,12 +225,18 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
 # fig, ax = plt.subplots(1, 1, figsize=(11, 4.5))
 
 
-helice1 = PropellerTest("Emile", "donnees/helice_emile5000a10000.csv")
-helice2 = PropellerTest("Gabriel", "donnees/helice_gabriel5000a10000.csv")
+helice1 = PropellerTest("v0 3 pales", "donnees/3pales.csv")
+helice2 = PropellerTest("v0 4 pales", "donnees/4pales.csv")
+helice3 = PropellerTest("v0 5 pales", "donnees/5pales.csv")
 
 
 # Comparer les mesures sur deux hélices sur le même graphique
-multi_plot([helice1, helice2], x_param=["vitesse", "vitesse"], y_param=["poussee", "p_elec"], xlabel=["Vitesse (tour/min)"]*2, ylabel=["Poussée (N)", "Puissance électrique (W)"], title="Comparaison des hélices Emile et Gabriel")
+multi_plot([helice1, helice2, helice3], 
+           x_param=["vitesse"], 
+           y_param=["poussee"], 
+           xlabel=["Vitesse (tour/min)"], 
+           ylabel=["Poussée (N)"], 
+           title="Comparaison nombre de pales v0")
 
 # Récupérer la caractérisation complète d'une hélice et ses statistiques 
 helice1.caracterisation_complete()
@@ -235,6 +244,9 @@ helice1.statistiques()
 
 helice2.caracterisation_complete()
 helice2.statistiques()
+
+helice3.caracterisation_complete()
+helice3.statistiques()
 
 plt.show()
 
