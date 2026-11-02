@@ -54,9 +54,9 @@ class PropellerTest:
       
         self.temps = self.df["Time (s)"] # s
         self.poussee = abs(self.df["Thrust (N)"]) # N
-        self.couple = self.df["Torque (N·m)"] # Nm
+        self.couple = abs(self.df["Torque (N·m)"]) # Nm
         self.vitesse = self.df["Motor Optical Speed (RPM)"]  # tour/min
-        self.p_elec = self.df["Electrical Power (W)"] # We
+        self.p_elec = abs(self.df["Electrical Power (W)"]) # We
         self.esc = self.df["ESC signal (µs)"]  # Signal de commande ESC
 
         # --- Association des paramètres utilisateur avec les données ---
@@ -147,29 +147,48 @@ class PropellerTest:
         """
 
 
-        fig, ax = plt.subplots(2, 2, figsize=(11, 6.5))
+        fig, ax = plt.subplots(2, 3, figsize=(11, 6.5))
         fig.suptitle(f"Caractérisation de l'hélice {self.nom}", fontsize=16)
 
         # F en fonction de omega^2 
         ax[0, 0].plot(self.vitesse**2, self.poussee, "bo", markersize=MARKERSIZE)
         ax[0, 0].set_xlabel("Vitesse (tour/min)^2")
         ax[0, 0].set_ylabel("Poussée (N)")
+        ax[0, 0].grid()
 
 
         # P_elec en fonction de omega^3
         ax[0, 1].plot(self.vitesse**3, self.p_elec, "ro", markersize=MARKERSIZE)
         ax[0, 1].set_xlabel("Vitesse (tour/min)^3")
         ax[0, 1].set_ylabel("Puissance électrique (W)")
+        ax[0, 1].grid()
 
         # F/P_elec en fonction de F
         ax[1, 0].plot(self.poussee, self.poussee / self.p_elec, "go", markersize=MARKERSIZE)
         ax[1, 0].set_xlabel("Poussée (N)")
         ax[1, 0].set_ylabel("Efficacité (N/W)")
+        ax[1, 0].grid()
 
         # F en fonction de omega 
         ax[1, 1].plot(self.vitesse, self.poussee, "mo", markersize=MARKERSIZE)
         ax[1, 1].set_xlabel("Vitesse (tour/min)")
         ax[1, 1].set_ylabel("Poussée (N)")
+        ax[1, 1].grid()
+
+        # C_P en fonction de C_T
+        Ct = self.poussee / (rho * self.vitesse**2 * (2*self.rayon)**4)
+        Cp = self.p_elec /(rho * self.vitesse**3 * (2*self.rayon)**5)
+        ax[1, 2].plot(Ct, Cp, "co", markersize=MARKERSIZE)
+        ax[1, 2].set_xlabel("C_T")
+        ax[1, 2].set_ylabel("C_P")
+        ax[1, 2].grid()
+
+        # F en fonction de omega 
+        ax[0, 2].plot(self.vitesse, self.poussee, "ko", markersize=MARKERSIZE)
+        ax[0, 2].set_xlabel("Vitesse (tour/min)")
+        ax[0, 2].set_ylabel("Poussée (N)")
+        ax[0, 2].grid()
+
 
 
 
@@ -195,8 +214,6 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
         a.legend()
         a.grid()
     
-  
-    
     return ax
 
 
@@ -208,13 +225,16 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
 helice1 = PropellerTest("Emile", "donnees/helice_emile5000a10000.csv")
 helice2 = PropellerTest("Gabriel", "donnees/helice_gabriel5000a10000.csv")
 
+
+# Comparer les mesures sur deux hélices sur le même graphique
 multi_plot([helice1, helice2], x_param=["vitesse", "vitesse"], y_param=["poussee", "p_elec"], xlabel=["Vitesse (tour/min)"]*2, ylabel=["Poussée (N)", "Puissance électrique (W)"], title="Comparaison des hélices Emile et Gabriel")
 
-#helice1.caracterisation_complete()
-#helice1.statistiques()
+# Récupérer la caractérisation complète d'une hélice et ses statistiques 
+helice1.caracterisation_complete()
+helice1.statistiques()
 
-#helice2.caracterisation_complete()
-#helice2.statistiques()
+helice2.caracterisation_complete()
+helice2.statistiques()
 
 plt.show()
 
