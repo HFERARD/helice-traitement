@@ -1,0 +1,60 @@
+Pour transformer la vidéo en stack d'image : 
+sur git
+>C:\FFmpeg\bin\ffmpeg.exe -i "C:\Users\evalu\OneDrive\Documents\Mines cours\aero\strio\sample.mp4" -fps_mode passthrough "C:\Users\evalu\OneDrive\Documents\Mines cours\aero\strio\frame_%05d.png"
+
+
+Pour visualiser le champ de vitesse sur Imagej :
+Importer la vidéo : File > Import > Movie (FFMPEG) ou via Bio-Formats. Pour une vidéo en pile d’images, coche l’option qui charge toutes les images.
+Passer en niveaux de gris : Image > Type > 8-bit.
+Créer la référence : filme quelques secondes sans écoulement, puis Image > Stacks > Z Project > Average Intensity. La moyenne réduit le bruit.
+Soustraire : Process > Image Calculator, avec la pile de ton essai comme Image 1, la référence comme Image 2, l’opération Difference, en cochant Create new window et Process entire stack.
+Amplifier : Image > Adjust > Brightness/Contrast, ou Process > Math > Multiply. Applique ensuite un léger Process > Filters > Gaussian Blur (rayon 1 à 2 px) pour lisser le bruit.
+Colorer : Image > Lookup Tables > Fire pour mieux voir les structures.
+
+
+Pour avoir la corrélation  d'image via ImageJ :
+Ouvre Plugins > New > Macro, colle le code, puis Run
+code: 
+on fait la premiere etape 
+
+
+// Prérequis : "sample" (pile) et "frame_00001" (référence) ouvertes,
+// toutes deux en 8-bit et de même taille.
+setBatchMode(true);
+sample = "sample";
+ref = "frame_00001";
+
+selectWindow(sample);
+n = nSlices;
+selectWindow(ref);
+w = getWidth();
+h = getHeight();
+
+newImage("paires", "8-bit black", w, h, 2*n);
+
+for (i = 1; i <= n; i++) {
+    // image de référence en position impaire
+    selectWindow(ref);
+    run("Select All");
+    run("Copy");
+    selectWindow("paires");
+    setSlice(2*i - 1);
+    run("Paste");
+
+    // image avec flux en position paire
+    selectWindow(sample);
+    setSlice(i);
+    run("Select All");
+    run("Copy");
+    selectWindow("paires");
+    setSlice(2*i);
+    run("Paste");
+}
+run("Select None");
+setBatchMode(false);
+
+Étape 2 : chercher le plugin directement
+Appuie sur la touche L du clavier.
+Une petite fenêtre de recherche s’ouvre : tape PIV
+
+
