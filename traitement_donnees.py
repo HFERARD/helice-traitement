@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
+
 
 
 
@@ -30,6 +32,13 @@ def traceur(X, Y, color="blue", xlabel="", ylabel="", title="", label="", ax=Non
         ax.legend()
     return ax
 
+def lister_fichiers_csv(dossier):
+    """
+    Lister tous les fichiers CSV dans un dossier donné
+    """
+    fichiers_csv = [f for f in os.listdir(dossier) if f.endswith('.csv')]
+    return fichiers_csv
+
     
 
 # ---------------------- CORPS DU TRAITEMENT DES DONNEES ---------------------------------
@@ -46,22 +55,26 @@ class PropellerTest:
 
         # --- Lecture des données ---
 
-        self.df = pd.read_csv(filename, encoding="utf-8-sig", on_bad_lines="skip")
-        self.df = self.df[self.df["Motor Optical Speed (RPM)"] > 1000] 
+        self._df = pd.read_csv(filename, encoding="utf-8-sig", on_bad_lines="skip")
+        self._df = self._df[self._df["Motor Optical Speed (RPM)"] > 1000] 
         # TODO : vérifier pourquoi Motor Optical Speed ? 
 
         # --- Preprocessing des données pour élminier les valeurs inutiles ---
         
-        self.df = self.df[self.masque_montee(self.df)]
+        self._df = self._df[self.masque_montee(self._df)]
       
-        self.temps = self.df["Time (s)"] # s
-        self.poussee = abs(self.df["Thrust (N)"]) # N
-        self.couple = abs(self.df["Torque (N·m)"]) # Nm
-        self.vitesse = self.df["Motor Optical Speed (RPM)"]  # tour/min
-        self.p_elec = abs(self.df["Electrical Power (W)"]) # We
-        self.esc = self.df["ESC signal (µs)"]  # Signal de commande ESC
+        self.temps = self._df["Time (s)"] # s
+        self.poussee = abs(self._df["Thrust (N)"]) # N
+        self.couple = abs(self._df["Torque (N·m)"]) # Nm
+        self.vitesse = self._df["Motor Optical Speed (RPM)"]  # tour/min
+        self.p_elec = abs(self._df["Electrical Power (W)"]) # We
+        self.esc = self._df["ESC signal (µs)"]  # Signal de commande ESC
         self.p_meca = self.couple * self.vitesse * (2 * np.pi) / 60  # W
 
+        # --- On normalise chaque mesure de force
+    
+        _, B = np.polyfit(self.vitesse.to_numpy()**2, self.poussee.to_numpy(), 1)
+        self.poussee = self.poussee - B
 
         vmin, vmax = 2000, 15000
         masque_plage = (self.vitesse >= vmin) & (self.vitesse <= vmax) & (self.p_elec > 0) & (self.couple > 0)
@@ -89,6 +102,7 @@ class PropellerTest:
         esc_ = df["ESC signal (µs)"]
         t_fin = df.loc[esc_ >= 0.98 * esc_.max(), "Time (s)"].max()
         return df["Time (s)"] <= t_fin
+
 
     def surface_balayee(self):
         return np.pi * self.rayon**2
@@ -239,9 +253,11 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
 
 # --- L'UTILISATEUR PEUT MODIFIER LES FONCTIONS CI-DESSOUS EN FONCTION DES ANALYSES ---
     
-helice_gabriel = PropellerTest("[gab]clarkY-v1-3pales", "donnees/[gab]clarkY-v1-3pales.csv")
-helice_gabriel.caracterisation_complete(savefig=True)
-
+helices_names = lister_fichiers_csv("donnees")
+helices = [PropellerTest(nom=fichier.split(".")[0], filename=f"donnees/{fichier}") for fichier in helices_names]
+multi_plot(helices, x_param=["poussee"], y_param=["p_meca"], xlabel=["Poussée $F$ ($N$)"], ylabel=["Puissance mécanique $P_{meca}$ ($W$)"], title="Comparaison des poussées des hélices")
+for helice in helices:
+    helice.caracterisation_complete(savefig=True)
 
 plt.show()
 
