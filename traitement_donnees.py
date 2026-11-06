@@ -15,6 +15,7 @@ v_min, v_max = 6000, 10000   # plage stable pour faire les calculs
 
 MARKERSIZE = 2
 
+
 # ---------------------- FONCTIONS UTILES -------------------------------------------------
 
 def traceur(X, Y, color="blue", xlabel="", ylabel="", title="", label="", ax=None):
@@ -28,6 +29,7 @@ def traceur(X, Y, color="blue", xlabel="", ylabel="", title="", label="", ax=Non
     if label:
         ax.legend()
     return ax
+
     
 
 # ---------------------- CORPS DU TRAITEMENT DES DONNEES ---------------------------------
@@ -58,6 +60,15 @@ class PropellerTest:
         self.vitesse = self.df["Motor Optical Speed (RPM)"]  # tour/min
         self.p_elec = abs(self.df["Electrical Power (W)"]) # We
         self.esc = self.df["ESC signal (µs)"]  # Signal de commande ESC
+        self.p_meca = self.couple * self.vitesse * (2 * np.pi) / 60  # W
+
+
+        vmin, vmax = 2000, 15000
+        masque_plage = (self.vitesse >= vmin) & (self.vitesse <= vmax) & (self.p_elec > 0) & (self.couple > 0)
+        vitesse = self.vitesse[masque_plage]
+
+        self.Ct = self.poussee[masque_plage] / (rho * vitesse**2 * (2*self.rayon)**4)
+        self.Cp = self.p_elec[masque_plage] /(rho * vitesse**3 * (2*self.rayon)**5)
 
         # --- Association des paramètres utilisateur avec les données ---
         
@@ -67,7 +78,10 @@ class PropellerTest:
             "couple": self.couple,
             "vitesse": self.vitesse,
             "p_elec": self.p_elec,
-            "esc": self.esc
+            "p_meca": self.p_meca,
+            "esc": self.esc,
+            "Cp": self.Cp,
+            "Ct": self.Ct
         }
 
     @staticmethod
@@ -81,7 +95,7 @@ class PropellerTest:
 
     def rendement_mécanique(self, mask=slice(None)):
         """
-        Calcul du rendement mécanique de l'hélice
+    Calcul du rendement mécanique de l'hélice
         """
         return self.poussee[mask] * self.vitesse[mask] * (2 * np.pi) / self.p_elec[mask]
 
@@ -93,13 +107,12 @@ class PropellerTest:
 
         masque_plage = (self.vitesse >= vmin) & (self.vitesse <= vmax) & (self.p_elec > 0) & (self.couple > 0)
         
-        vitesse = self.vitesse[masque_plage]
-        Ct = self.poussee[masque_plage] / (rho * vitesse**2 * (2*self.rayon)**4)
-        Cp = self.p_elec[masque_plage] /(rho * vitesse**3 * (2*self.rayon)**5)
-        FM = self.poussee[masque_plage]**1.5 / (np.sqrt(2 * rho * self.surface_balayee()) * self.p_elec[masque_plage])
+        Ct = self.Ct[masque_plage]
+        Cp = self.Cp[masque_plage]
+        FM = self.poussee[masque_plage]**1.5 / (np.sqrt(2 * rho * self.surface_balayee()) * self.p_meca[masque_plage])
 
-        rendement = self.p_elec[masque_plage] / self.p_elec[masque_plage]
-        NW = self.poussee[masque_plage] / self.p_elec[masque_plage]
+        rendement = self.p_meca[masque_plage] / self.p_meca[masque_plage]
+        NW = self.poussee[masque_plage] / self.p_meca[masque_plage]
         eta_fin = rendement[self.vitesse[masque_plage] >= 0.9 * vmax].mean()   # rendement moteur+ESC en haut de plage (il varie avec la vitesse)
 
 
@@ -141,7 +154,7 @@ class PropellerTest:
         return ax
 
 
-    def caracterisation_complete(self):
+    def caracterisation_complete(self, savefig=False):
         """
         Tracer les graphiques de caractérisation selon le protocole établi par Mélina
         """
@@ -152,47 +165,48 @@ class PropellerTest:
 
         # F en fonction de omega^2 
         ax[0, 0].plot(self.vitesse**2, self.poussee, "bo", markersize=MARKERSIZE)
-        ax[0, 0].set_xlabel("Vitesse (tour/min)^2")
-        ax[0, 0].set_ylabel("Poussée (N)")
+        ax[0, 0].set_xlabel("Vitesse de rotation $\omega$ $(tr/min)^2$")
+        ax[0, 0].set_ylabel("Poussée $F$ ($N$)")
         ax[0, 0].grid()
 
 
-        # P_elec en fonction de omega^3
-        ax[0, 1].plot(self.vitesse**3, self.p_elec, "ro", markersize=MARKERSIZE)
-        ax[0, 1].set_xlabel("Vitesse (tour/min)^3")
-        ax[0, 1].set_ylabel("Puissance électrique (W)")
+        # P_mec en fonction de omega^3
+        ax[0, 1].plot(self.vitesse**3, self.p_meca, "ro", markersize=MARKERSIZE)
+        ax[0, 1].set_xlabel("Vitesse de rotation $\\omega$ $(tr/min)^3$")
+        ax[0, 1].set_ylabel("Puissance mécanique $P_{meca}$ ($W$)")
         ax[0, 1].grid()
 
-        # F/P_elec en fonction de F
-        ax[1, 0].plot(self.poussee, self.poussee / self.p_elec, "go", markersize=MARKERSIZE)
-        ax[1, 0].set_xlabel("Poussée (N)")
-        ax[1, 0].set_ylabel("Efficacité (N/W)")
+        # F/P_mec en fonction de F
+        ax[1, 0].plot(self.poussee, self.poussee / self.p_meca, "go", markersize=MARKERSIZE)
+        ax[1, 0].set_xlabel("Poussée $F$ ($N$)")
+        ax[1, 0].set_ylabel("Efficacité $\\eta$ (N/W)")
         ax[1, 0].grid()
 
         # F en fonction de omega 
         ax[1, 1].plot(self.vitesse, self.poussee, "mo", markersize=MARKERSIZE)
-        ax[1, 1].set_xlabel("Vitesse (tour/min)")
-        ax[1, 1].set_ylabel("Poussée (N)")
+        ax[1, 1].set_xlabel("Vitesse de rotation $\\omega$ (tr/min)")
+        ax[1, 1].set_ylabel("Poussée $F$ ($N$)")
         ax[1, 1].grid()
 
-        # C_P en fonction de C_T
-        Ct = self.poussee / (rho * self.vitesse**2 * (2*self.rayon)**4)
-        Cp = self.p_elec /(rho * self.vitesse**3 * (2*self.rayon)**5)
-        ax[1, 2].plot(Ct, Cp, "co", markersize=MARKERSIZE)
-        ax[1, 2].set_xlabel("C_T")
-        ax[1, 2].set_ylabel("C_P")
+        # Cp en fonction de Ct
+        ax[1, 2].plot(self.Ct, self.Cp, "co", markersize=MARKERSIZE)
+        ax[1, 2].set_xlabel("$C_t$")
+        ax[1, 2].set_ylabel("$C_p$")
         ax[1, 2].grid()
 
-        # F en fonction de omega 
-        ax[0, 2].plot(self.vitesse, self.poussee, "ko", markersize=MARKERSIZE)
-        ax[0, 2].set_xlabel("Vitesse (tour/min)")
-        ax[0, 2].set_ylabel("Poussée (N)")
+        # P_meca en fonction de P_elec 
+        ax[0, 2].plot(self.p_elec, self.p_meca, "bo", markersize=MARKERSIZE)
+        ax[0, 2].set_xlabel("$P_{elec}$ ($W$)")
+        ax[0, 2].set_ylabel("$P_{meca}$ ($W$)")
         ax[0, 2].grid()
+        
+
+        if savefig:
+            fig.savefig(f"resultats/caracterisation {self.nom}.png", dpi=900, bbox_inches='tight')
 
 
 
-
-def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[str], xlabel: list[str], ylabel: list[str], title=""):
+def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[str], xlabel: list[str], ylabel: list[str], title="", savefig=False):
     """
     Tracer plusieurs hélices sur le même graphique en fonction de paramètres cherchés
     """
@@ -217,47 +231,19 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
         a.legend()
         a.grid()
     
+    if savefig:
+        fig.savefig(f"resultats/{title}.png", dpi=900, bbox_inches='tight')
+
     return ax
 
 
 # --- L'UTILISATEUR PEUT MODIFIER LES FONCTIONS CI-DESSOUS EN FONCTION DES ANALYSES ---
     
-# fig, ax = plt.subplots(1, 1, figsize=(11, 4.5))
+helice_gabriel = PropellerTest("[gab]clarkY-v1-3pales", "donnees/[gab]clarkY-v1-3pales.csv")
+helice_gabriel.caracterisation_complete(savefig=True)
 
-
-<<<<<<< HEAD
-helice1 = PropellerTest("v0 3 pales", "donnees/3pales.csv")
-helice2 = PropellerTest("v0 4 pales", "donnees/4pales.csv")
-helice3 = PropellerTest("v0 5 pales", "donnees/5pales.csv")
-
-
-# Comparer les mesures sur deux hélices sur le même graphique
-multi_plot([helice1, helice2, helice3], 
-           x_param=["vitesse"], 
-           y_param=["poussee"], 
-           xlabel=["Vitesse (tour/min)"], 
-           ylabel=["Poussée (N)"], 
-           title="Comparaison nombre de pales v0")
-=======
-helice1 = PropellerTest("Emile", "donnees/helice_emile5000a10000.csv")
-helice2 = PropellerTest("Gabriel", "donnees/helice_gabriel5000a10000.csv")
-helice3 = PropellerTest("AG11", "donnees/AG11-4pales.csv")
-helice4 = PropellerTest("Gabiz", "donnees/Gabizarre.csv")
-
-
-# Comparer les mesures sur deux hélices sur le même graphique
-multi_plot([helice1, helice2, helice3, helice4], x_param=["vitesse", "vitesse"], y_param=["poussee", "p_elec"], xlabel=["Vitesse (tour/min)"]*2, ylabel=["Poussée (N)", "Puissance électrique (W)"], title="Comparaison des hélices Emile et Gabriel")
->>>>>>> 250640a2f6162d4db0c6c71faf93db0fd89a601e
-
-# Récupérer la caractérisation complète d'une hélice et ses statistiques 
-helice1.caracterisation_complete()
-helice1.statistiques()
-
-helice2.caracterisation_complete()
-helice2.statistiques()
-
-helice3.caracterisation_complete()
-helice3.statistiques()
 
 plt.show()
+
+
 
