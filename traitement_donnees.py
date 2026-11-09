@@ -17,6 +17,8 @@ v_min, v_max = 6000, 10000   # plage stable pour faire les calculs
 
 MARKERSIZE = 2
 
+plt.rcParams['figure.constrained_layout.use'] = True
+
 
 # ---------------------- FONCTIONS UTILES -------------------------------------------------
 
@@ -72,9 +74,9 @@ class PropellerTest:
         self.p_meca = self.couple * self.vitesse * (2 * np.pi) / 60  # W
 
         # --- On normalise chaque mesure de force
-    
-        _, B = np.polyfit(self.vitesse.to_numpy()**2, self.poussee.to_numpy(), 1)
-        self.poussee = self.poussee - B
+        if self.nom != "[gab]clarkY-v1-3pales":
+            _, B = np.polyfit(self.vitesse.to_numpy()**2, self.poussee.to_numpy(), 1)
+            self.poussee = self.poussee - B
 
         vmin, vmax = 2000, 15000
         masque_plage = (self.vitesse >= vmin) & (self.vitesse <= vmax) & (self.p_elec > 0) & (self.couple > 0)
@@ -220,7 +222,7 @@ class PropellerTest:
 
 
 
-def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[str], xlabel: list[str], ylabel: list[str], title="", savefig=False):
+def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[str], xlabel: list[str], ylabel: list[str], title="", savefig=False, axsize=(6.5, 6.5)):
     """
     Tracer plusieurs hélices sur le même graphique en fonction de paramètres cherchés
     """
@@ -230,7 +232,7 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
     assert len(xlabel) == len(x_param), "Le nombre de labels x doit correspondre au nombre de paramètres x"
 
 
-    fig, ax = plt.subplots(1, len(y_param), figsize=(11, 4.5))
+    fig, ax = plt.subplots(1, len(y_param), figsize = (axsize[0] * len(y_param), axsize[1]))
     fig.suptitle(title, fontsize=16)
 
     if len(y_param) == 1:
@@ -253,11 +255,18 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
 
 # --- L'UTILISATEUR PEUT MODIFIER LES FONCTIONS CI-DESSOUS EN FONCTION DES ANALYSES ---
     
-helices_names = lister_fichiers_csv("donnees")
+#helices_names = lister_fichiers_csv("donnees")
+helices_names = ["[gab]clarkY-v1-3pales.csv", "[gabizarre]clarkY-v2-3pales.csv", "naca-v1-2pales.csv"]
 helices = [PropellerTest(nom=fichier.split(".")[0], filename=f"donnees/{fichier}") for fichier in helices_names]
-multi_plot(helices, x_param=["poussee"], y_param=["p_meca"], xlabel=["Poussée $F$ ($N$)"], ylabel=["Puissance mécanique $P_{meca}$ ($W$)"], title="Comparaison des poussées des hélices")
-for helice in helices:
-    helice.caracterisation_complete(savefig=True)
+
+multi_plot(helices, x_param=["vitesse", "poussee"], y_param=["poussee", "p_meca"], xlabel=["$\\omega$ ($tour/min$)", "Poussée $F$ ($N$)"], ylabel=["Poussee ($N$)", "Puissance mécanique $P_{meca}$ ($W$)"], title="Comparaison hélices", savefig=True, axsize=(9.5, 6.5))
+
+#for helice in helices:
+#    helice.caracterisation_complete(savefig=True)
+
+    #helices_ = ["v0-clarkY-3pales.csv"]
+    #helices = [PropellerTest(nom=fichier.split(".")[0], filename=f"donnees/{fichier}") for fichier in helices_]
+
 
 plt.show()
 
