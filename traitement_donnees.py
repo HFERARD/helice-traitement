@@ -175,14 +175,14 @@ class PropellerTest:
 
         # F en fonction de omega^2 
         ax[0, 0].plot(self.vitesse**2, self.poussee, "bo", markersize=MARKERSIZE)
-        ax[0, 0].set_xlabel("Vitesse de rotation $\omega$ $(tr/min)^2$")
+        ax[0, 0].set_xlabel("$\omega^2$ $(tr/min)$^2$")
         ax[0, 0].set_ylabel("Poussée $F$ ($N$)")
         ax[0, 0].grid()
 
 
         # P_mec en fonction de omega^3
         ax[0, 1].plot(self.vitesse**3, self.p_meca, "ro", markersize=MARKERSIZE)
-        ax[0, 1].set_xlabel("Vitesse de rotation $\\omega$ $(tr/min)^3$")
+        ax[0, 1].set_xlabel("$\omega^3$ (tr/min)$^3$")
         ax[0, 1].set_ylabel("Puissance mécanique $P_{meca}$ ($W$)")
         ax[0, 1].grid()
 
@@ -216,7 +216,11 @@ class PropellerTest:
 
 
 
-def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[str], xlabel: list[str], ylabel: list[str], title="", savefig=False):
+def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[str],
+                xlabel: list[str], ylabel: list[str],
+                x_func: list[callable] | None = None,
+                y_func: list[callable] | None = None,
+                title="", savefig=False):
     """
     Tracer plusieurs hélices sur le même graphique en fonction de paramètres cherchés
     """
@@ -224,6 +228,11 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
     assert len(xlabel) == len(y_param), "Le nombre de labels x doit correspondre au nombre de paramètres y"
     assert len(ylabel) == len(y_param), "Le nombre de labels y doit correspondre au nombre de paramètres y"
     assert len(xlabel) == len(x_param), "Le nombre de labels x doit correspondre au nombre de paramètres x"
+
+    if x_func is None:
+        x_func = [lambda x: x] * len(x_param)
+    if y_func is None:
+        y_func = [lambda x: x] * len(y_param)
 
 
     fig, ax = plt.subplots(1, len(y_param), figsize=(11, 4.5))
@@ -234,10 +243,13 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
 
     for (i, param), a in zip(enumerate(y_param), ax):
         for helice in helices:
-            ax[i].plot(helice.PARAMETERS[x_param[i]], helice.PARAMETERS[param], "o", label=helice.nom, markersize=MARKERSIZE)
+            ax[i].plot(x_func[i](helice.PARAMETERS[x_param[i]]), 
+                       y_func[i](helice.PARAMETERS[param]), "o", 
+                       label=helice.nom, markersize=MARKERSIZE)
         
         a.set_xlabel(xlabel[i])
         a.set_ylabel(ylabel[i])
+
         a.legend()
         a.grid()
     
@@ -249,10 +261,16 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
 
 # L'UTILISATEUR PEUT MODIFIER LES FONCTIONS CI-DESSOUS EN FONCTION DES ANALYSES
     
-helices_names = lister_fichiers_csv("donnees_finales")
+helices_names = ["v0-clarkY-2pales.csv", "v0-clarkY-3pales.csv", "v0-clarkY-4pales.csv", "v0-clarkY-5pales.csv"]
 helices = [PropellerTest(nom=fichier.split(".")[0], filename=f"donnees/{fichier}") for fichier in helices_names]
-multi_plot(helices, x_param=["poussee", "vitesse", "vitesse"], y_param=["p_meca", "p_meca", "poussee"], xlabel=["Poussée $F$ ($N$)", "vitesse", "vitesse"], ylabel=["Puissance mécanique $P_{meca}$ ($W$)", "puissance", "poussee"], title="Comparaison des poussées des hélices")
-multi_plot(helices, x_param=["poussee", "vitesse", "vitesse"], y_param=["p_elec", "p_elec", "poussee"], xlabel=["Poussée $F$ ($N$)", "vitesse", "vitesse"], ylabel=["Puissance électrique $P_{élec}$ ($W$)", "puissance", "poussee"], title="Comparaison des poussées des hélices")
 
+multi_plot(helices, 
+           x_param=["vitesse"],
+           y_param=["p_meca"],
+           x_func=[lambda x: x**3],
+              xlabel=["$\\omega^3$ (tr/min)$^3$"],
+                ylabel=["Puissance mécanique $P_{meca}$ ($W$)"],
+                title="Dépendance cubique de la puissance mécanique en fonction de la vitesse de rotation",
+                savefig=True) 
 
 plt.show()
