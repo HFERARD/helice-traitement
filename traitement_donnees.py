@@ -4,23 +4,18 @@ import matplotlib.pyplot as plt
 import os
 
 
-
-
-# -------------------- PARAMETRES PHYSIQUE -------------------------------------------------
-rho = 1.2            # masse volumique de l'air
+#  PARAMETRES PHYSIQUE 
+rho = 1.2  # masse volumique de l'air
 g = 9.81
 n_helices = 4
-R = 0.06             # rayon
-A = np.pi * R**2     # surface du disque
-v_min, v_max = 6000, 10000   # plage stable pour faire les calculs
-
+R = 0.06 # rayon
+A = np.pi * R**2 # surface du disque
+v_min = 6000
+v_max = 10000 # plage stable pour faire les calculs
 
 MARKERSIZE = 2
 
-plt.rcParams['figure.constrained_layout.use'] = True
-
-
-# ---------------------- FONCTIONS UTILES -------------------------------------------------
+# FONCTIONS UTILES
 
 def traceur(X, Y, color="blue", xlabel="", ylabel="", title="", label="", ax=None):
     if ax is None:
@@ -43,40 +38,39 @@ def lister_fichiers_csv(dossier):
 
     
 
-# ---------------------- CORPS DU TRAITEMENT DES DONNEES ---------------------------------
+# CORPS DU TRAITEMENT DES DONNEES
 
 
 class PropellerTest:
     def __init__(self, nom: str, filename: str, n_helice = 4, R=0.06):
 
-        # --- Initialisation des paramètres ---
+        # Initialisation des paramètres
 
         self.nom = nom
         self.n_helice = n_helice
         self.rayon = R
 
-        # --- Lecture des données ---
+        # Lecture des données
 
         self._df = pd.read_csv(filename, encoding="utf-8-sig", on_bad_lines="skip")
-        self._df = self._df[self._df["Motor Optical Speed (RPM)"] > 1000] 
-        # TODO : vérifier pourquoi Motor Optical Speed ? 
+        self._df = self._df[self._df["Motor Optical Speed (RPM)"] > 1000] # condtion de rotation du moteur
 
-        # --- Preprocessing des données pour élminier les valeurs inutiles ---
+        # Preprocessing des données pour élminier les valeurs inutiles 
         
         self._df = self._df[self.masque_montee(self._df)]
       
         self.temps = self._df["Time (s)"] # s
         self.poussee = abs(self._df["Thrust (N)"]) # N
         self.couple = abs(self._df["Torque (N·m)"]) # Nm
-        self.vitesse = self._df["Motor Optical Speed (RPM)"]  # tour/min
+        self.vitesse = self._df["Motor Optical Speed (RPM)"] # tour/min
         self.p_elec = abs(self._df["Electrical Power (W)"]) # We
         self.esc = self._df["ESC signal (µs)"]  # Signal de commande ESC
         self.p_meca = self.couple * self.vitesse * (2 * np.pi) / 60  # W
 
-        # --- On normalise chaque mesure de force
-        if self.nom != "[gab]clarkY-v1-3pales":
-            _, B = np.polyfit(self.vitesse.to_numpy()**2, self.poussee.to_numpy(), 1)
-            self.poussee = self.poussee - B
+        # On normalise chaque mesure de force
+    
+        _, B = np.polyfit(self.vitesse.to_numpy()**2, self.poussee.to_numpy(), 1)
+        self.poussee = self.poussee - B
 
         vmin, vmax = 2000, 15000
         masque_plage = (self.vitesse >= vmin) & (self.vitesse <= vmax) & (self.p_elec > 0) & (self.couple > 0)
@@ -85,7 +79,7 @@ class PropellerTest:
         self.Ct = self.poussee[masque_plage] / (rho * vitesse**2 * (2*self.rayon)**4)
         self.Cp = self.p_elec[masque_plage] /(rho * vitesse**3 * (2*self.rayon)**5)
 
-        # --- Association des paramètres utilisateur avec les données ---
+        # Association des paramètres utilisateur avec les données
         
         self.PARAMETERS = {
             "temps": self.temps,
@@ -129,7 +123,7 @@ class PropellerTest:
 
         rendement = self.p_meca[masque_plage] / self.p_meca[masque_plage]
         NW = self.poussee[masque_plage] / self.p_meca[masque_plage]
-        eta_fin = rendement[self.vitesse[masque_plage] >= 0.9 * vmax].mean()   # rendement moteur+ESC en haut de plage (il varie avec la vitesse)
+        eta_fin = rendement[self.vitesse[masque_plage] >= 0.9 * vmax].mean() # rendement moteur+ESC en haut de plage (il varie avec la vitesse)
 
 
         print(f"--- STATISTIQUES DU TEST HELICE {self.nom} ---")
@@ -222,7 +216,7 @@ class PropellerTest:
 
 
 
-def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[str], xlabel: list[str], ylabel: list[str], title="", savefig=False, axsize=(6.5, 6.5)):
+def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[str], xlabel: list[str], ylabel: list[str], title="", savefig=False):
     """
     Tracer plusieurs hélices sur le même graphique en fonction de paramètres cherchés
     """
@@ -232,7 +226,7 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
     assert len(xlabel) == len(x_param), "Le nombre de labels x doit correspondre au nombre de paramètres x"
 
 
-    fig, ax = plt.subplots(1, len(y_param), figsize = (axsize[0] * len(y_param), axsize[1]))
+    fig, ax = plt.subplots(1, len(y_param), figsize=(11, 4.5))
     fig.suptitle(title, fontsize=16)
 
     if len(y_param) == 1:
@@ -253,22 +247,12 @@ def multi_plot(helices: list[PropellerTest], x_param: list[str], y_param: list[s
     return ax
 
 
-# --- L'UTILISATEUR PEUT MODIFIER LES FONCTIONS CI-DESSOUS EN FONCTION DES ANALYSES ---
+# L'UTILISATEUR PEUT MODIFIER LES FONCTIONS CI-DESSOUS EN FONCTION DES ANALYSES
     
-#helices_names = lister_fichiers_csv("donnees")
-helices_names = ["[gab]clarkY-v1-3pales.csv", "[gabizarre]clarkY-v2-3pales.csv", "naca-v1-2pales.csv"]
+helices_names = lister_fichiers_csv("donnees_finales")
 helices = [PropellerTest(nom=fichier.split(".")[0], filename=f"donnees/{fichier}") for fichier in helices_names]
-
-multi_plot(helices, x_param=["vitesse", "poussee"], y_param=["poussee", "p_meca"], xlabel=["$\\omega$ ($tour/min$)", "Poussée $F$ ($N$)"], ylabel=["Poussee ($N$)", "Puissance mécanique $P_{meca}$ ($W$)"], title="Comparaison hélices", savefig=True, axsize=(9.5, 6.5))
-
-#for helice in helices:
-#    helice.caracterisation_complete(savefig=True)
-
-    #helices_ = ["v0-clarkY-3pales.csv"]
-    #helices = [PropellerTest(nom=fichier.split(".")[0], filename=f"donnees/{fichier}") for fichier in helices_]
+multi_plot(helices, x_param=["poussee", "vitesse", "vitesse"], y_param=["p_meca", "p_meca", "poussee"], xlabel=["Poussée $F$ ($N$)", "vitesse", "vitesse"], ylabel=["Puissance mécanique $P_{meca}$ ($W$)", "puissance", "poussee"], title="Comparaison des poussées des hélices")
+multi_plot(helices, x_param=["poussee", "vitesse", "vitesse"], y_param=["p_elec", "p_elec", "poussee"], xlabel=["Poussée $F$ ($N$)", "vitesse", "vitesse"], ylabel=["Puissance électrique $P_{élec}$ ($W$)", "puissance", "poussee"], title="Comparaison des poussées des hélices")
 
 
 plt.show()
-
-
-
